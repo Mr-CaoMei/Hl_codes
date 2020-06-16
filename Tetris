@@ -1,0 +1,1043 @@
+#include<windows.h>
+#include"resource.h"
+#include<stdlib.h>
+#include<time.h>
+#include<bits/stdc++.h>
+#include<atlstr.h>
+using namespace std;
+//地图//0:空白 1;正在下落方块   2;已经落下的方块
+bool pause = true;
+int flag_begin = 0;
+int map1_arrground[20][10] = {0};//玩家一背景
+int map2_arrground[20][10] = {0};//玩家二背景
+int  map1_Tetris_block[2][4] = { 0 };//玩家一随机方块
+int  map2_Tetris_block[2][4] = { 0 };//玩家二随机方块
+int type_block1= -1;//随机玩家一方块形状
+int type_block2 = -1;//随机玩家二方块形状
+int at_line1 = -1;//位置_行--玩家一
+int at_list1= -1;//位置_列--玩家一
+int at_line2 = -1;//位置_行--玩家二
+int at_list2 = -1;//位置_列--玩家二
+int player1 = 0;//玩家一分数
+int player2 = 0;//玩家二分数
+LRESULT WINAPI WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);//窗口处理函数
+void onpaint(HDC hdc);//绘图
+void drawblock(HDC hdc);//绘制方块
+void oncreate1();//窗口创建时生成方块
+void oncreate2();//窗口创建时生成方块
+void onReturn(HWND hwnd);//回车键函数
+void onLeft(HWND hwnd);//左键函数
+void blockLeft();//方块左移
+void onRight(HWND hwnd);//右键函数
+void blockRight();//方块右移
+void onDown(HWND hwnd);//下键函数
+void onUp(HWND hwnd);//上键函数
+int CanLeft1();
+int CanLeft2();
+int CanRight1();
+int CanRight2();
+//
+void onLeft2(HWND hwnd);//左键函数
+void blockLeft2();//方块左移
+void onRight2(HWND hwnd);//右键函数
+void blockRight2();//方块右移
+void onDown2(HWND hwnd);//下键函数
+void onUp2(HWND hwnd);//上键函数
+int _CanLeft1();
+int _CanLeft2();
+int _CanRight1();
+int _CanRight2();
+int CanChanged1();//能否变形判断
+void Changed1();//变形
+int CanChangedLine1();//长条能否变形判断
+void ChangedLine1();//长条变形
+int CanChanged2();//能否变形判断
+void Changed2();//变形
+int CanChangedLine2();//长条能否变形判断
+void ChangedLine2();//长条变形
+//
+void ontimer1(HWND hwnd);//加速下落的相应函数，包含计时
+int CanDownF1();
+int CanDownS1();
+void BlockDown1();
+void FlagChanged1();
+void DestroyBlock1();
+int Gameover1(HWND hwnd);
+//void ExitGame(hwnd);
+void ontimer2(HWND hwnd);//加速下落的相应函数，包含计时
+int CanDownF2();
+int CanDownS2();
+void BlockDown2();
+void FlagChanged2();
+void DestroyBlock2();
+int Gameover2(HWND hwnd);
+void ShowScore(HDC hmemdc);
+
+//
+void AddLineForOther(int flag,int num);
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPreInstance, LPSTR IpCmdLine, int ncmdShow) {
+	//MessageBox(NULL, L"这是我的第一个win32窗口应用", L"提示", MB_YESNO);//弹出消息提示框
+	//1.设计窗口类
+	TCHAR  setAppClassName[] = TEXT("Tetris From GC");
+	WNDCLASS winclass;
+	winclass.cbClsExtra = 0;																										//窗口类额外空间大小
+	winclass.cbWndExtra = 0;																										//窗口拓展空间大小
+	winclass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);						//加载白色背景画刷
+	winclass.hCursor = LoadCursor(NULL, IDC_ARROW);														//加载光标
+	winclass.hIcon= LoadIcon(hInstance,MAKEINTRESOURCE(IDI_ICON1));					//设置图标
+	winclass.hInstance = hInstance;																							//当前应用程序实例句柄
+	winclass.lpfnWndProc = WindowProc;																				//窗口处理函数
+	winclass.lpszClassName = setAppClassName;																	//窗口类型名
+	winclass.lpszMenuName = NULL;																						//窗口菜单名
+	winclass.style = CS_HREDRAW | CS_VREDRAW;																//窗口类的风格
+	//2.注册窗口类
+	RegisterClass(&winclass);
+
+	//3.创建窗口
+	HWND hwnd=CreateWindow(
+		setAppClassName,																						//窗口类型名
+		TEXT("NEW--Tetris"),																						//窗口标题
+		WS_OVERLAPPEDWINDOW,																		//窗口风格
+		400,100,																											//窗口左上角坐标
+		800,700,																										//窗口宽和高
+		NULL,																											//父窗口句柄
+		NULL,																											//菜单句柄
+		hInstance,																									//应用程序实例句柄
+		NULL																											//参数
+		);
+
+	//4.显示窗口
+	ShowWindow(hwnd,SW_SHOW);
+	//5.更新窗口
+	UpdateWindow(hwnd);
+
+	//6.消息循环（Windows消息机制）
+	MSG msg;
+	while (GetMessage(&msg, NULL, 0, 0)) {
+		TranslateMessage(&msg);																	//将虚拟键消息转化为字符消息
+		DispatchMessage(&msg);																	//将消息分发给窗口处理函数
+
+	}
+	//Sleep(10000);休眠占用
+		return 0;//退出程序
+}
+
+
+
+//窗口处理函数(回调函数）
+LRESULT WINAPI WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	PAINTSTRUCT ps;
+	HDC hdc;
+	switch (uMsg) {
+	case WM_CREATE://窗口创建消息
+			oncreate1();
+			oncreate2();
+		break;
+	case WM_TIMER:
+		ontimer1(hwnd);
+		ontimer2(hwnd);
+		break;
+	case WM_PAINT://窗口绘图消息
+		hdc=BeginPaint(hwnd, &ps);
+		onpaint(hdc);
+		EndPaint(hwnd, &ps);
+		break;
+	case WM_KEYDOWN://键盘按下
+		switch (wParam) {
+		case VK_RETURN://回车键
+			onReturn(hwnd);//开始
+			break;
+		case VK_LEFT://左键
+			onLeft2(hwnd);//左移
+			break;
+		case VK_RIGHT://右键
+			onRight2(hwnd);//右移
+			break;
+		case VK_UP://上键
+			onUp2(hwnd);//变形
+			break;
+		case VK_DOWN://下键
+			onDown2(hwnd);//加速
+			break;
+		case 'A'://左键
+		case 'a':
+			onLeft(hwnd);//左移
+			break;
+		case 'D'://右键
+		case 'd':
+			onRight(hwnd);//右移
+			break;
+		case 'W'://上键
+		case 'w':
+			onUp(hwnd);//变形
+			break;
+		case 'S'://下键
+		case 's':
+			onDown(hwnd);//加速
+			break;
+		}
+		break;
+	case WM_CLOSE://窗口关闭消息
+		DestroyWindow(hwnd);
+		break;
+	case WM_DESTROY://窗口销毁消息
+		PostQuitMessage(0);
+		break;
+	}
+	return DefWindowProc(hwnd,uMsg,wParam,lParam);
+}
+//绘图
+void onpaint(HDC hdc) {
+	//双缓冲
+	HDC hmemdc=CreateCompatibleDC(hdc);															//创建一个兼容的内存DC
+	HBITMAP hbackbmp=CreateCompatibleBitmap(hdc, 800, 600);					    //创建一个兼容位图  目前全黑
+	SelectObject(hmemdc, hbackbmp);
+	SelectObject(hmemdc, CreateFont(0, 0, 0, 0, 200, 0, 0, 0, ANSI_CHARSET, 0, 0, 0, FIXED_PITCH, NULL));//至于默认值取什么，自己查表，这里不重点讲
+	drawblock(hmemdc);
+	ShowScore(hmemdc);
+	BitBlt(hdc, 0, 0, 800, 600,hmemdc,0,0,SRCCOPY);													//复制位图
+}
+//绘制方块
+void drawblock(HDC hdc) {
+	//绘制大矩形
+	Rectangle(hdc, 0, 0, 300, 600);
+	Rectangle(hdc, 600, 0, 800, 600);
+	Rectangle(hdc, 610, 40, 780,80);
+	Rectangle(hdc, 610, 90, 780, 130);
+	Rectangle(hdc, 610, 140, 780, 280);
+	//绘制出每一个小方块
+	if (flag_begin == 1) {
+		for (int i = 0; i < 20; i++) {
+			for (int j = 0; j < 10; j++) {
+				if (map1_arrground[i][j] == 1 || map1_arrground[i][j] == 2) {
+					//绘制矩形
+					Rectangle(hdc, j * 30 + 1, i * 30 + 1, j * 30 + 30 - 1, i * 30 + 30 - 1);
+				}
+				if (map2_arrground[i][j] == 1 || map2_arrground[i][j] == 2) {
+					//绘制矩形
+					Rectangle(hdc, (j + 10) * 30 + 1, i * 30 + 1, (j + 10) * 30 + 30 - 1, i * 30 + 30 - 1);
+				}
+			}
+		}
+	}
+}
+//窗口创建时生成方块
+void oncreate1() {
+	
+		srand((UINT)time(NULL));
+		int flag1 = rand() % 7;
+		memset(map1_Tetris_block, 0, sizeof(map1_Tetris_block));//清空方块数组
+		switch (flag1) {
+		case 0:
+			type_block1 = 0;//仰躺7
+			at_line1 = 0;
+			at_list1 = 0;
+			map1_Tetris_block[0][0] = 1; map1_Tetris_block[0][1] = 0; map1_Tetris_block[0][2] = 0; map1_Tetris_block[0][3] = 0;
+			map1_Tetris_block[1][0] = 1; map1_Tetris_block[1][1] = 1; map1_Tetris_block[1][2] = 1; map1_Tetris_block[1][3] = 0;
+			break;
+		case 1:
+			type_block1 = 1;//趴躺7
+			at_line1 = 0;
+			at_list1 = 0;
+			map1_Tetris_block[0][0] = 1; map1_Tetris_block[0][1] = 1; map1_Tetris_block[0][2] = 1; map1_Tetris_block[0][3] = 0;
+			map1_Tetris_block[1][0] = 1; map1_Tetris_block[1][1] = 0; map1_Tetris_block[1][2] = 0; map1_Tetris_block[1][3] = 0;
+			break;
+		case 2:
+			type_block1 = 2;//正Z
+			at_line1 = 0;
+			at_list1 = 0;
+			map1_Tetris_block[0][0] = 1; map1_Tetris_block[0][1] = 1; map1_Tetris_block[0][2] = 0; map1_Tetris_block[0][3] = 0;
+			map1_Tetris_block[1][0] = 0; map1_Tetris_block[1][1] = 1; map1_Tetris_block[1][2] = 1; map1_Tetris_block[1][3] = 0;
+			break;
+		case 3:
+			type_block1 = 3;//反Z
+			at_line1 = 0;
+			at_list1 = 0;
+			map1_Tetris_block[0][0] = 0; map1_Tetris_block[0][1] = 1; map1_Tetris_block[0][2] = 1; map1_Tetris_block[0][3] = 0;
+			map1_Tetris_block[1][0] = 1; map1_Tetris_block[1][1] = 1; map1_Tetris_block[1][2] = 0; map1_Tetris_block[1][3] = 0;
+			break;
+		case 4:
+			type_block1 = 4;//正方形
+			map1_Tetris_block[0][0] = 0; map1_Tetris_block[0][1] = 1; map1_Tetris_block[0][2] = 1; map1_Tetris_block[0][3] = 0;
+			map1_Tetris_block[1][0] = 0; map1_Tetris_block[1][1] = 1; map1_Tetris_block[1][2] = 1; map1_Tetris_block[1][3] = 0;
+			break;
+		case 5:
+			type_block1 = 5;//凸形
+			at_line1 = 0;
+			at_list1 = 0;
+			map1_Tetris_block[0][0] = 0; map1_Tetris_block[0][1] = 1; map1_Tetris_block[0][2] = 0; map1_Tetris_block[0][3] = 0;
+			map1_Tetris_block[1][0] = 1; map1_Tetris_block[1][1] = 1; map1_Tetris_block[1][2] = 1; map1_Tetris_block[1][3] = 0;
+			break;
+		case 6:
+			type_block1 = 6;//长条
+			at_line1 = 0;
+			at_list1 = 0;
+			map1_Tetris_block[0][0] = 1; map1_Tetris_block[0][1] = 1; map1_Tetris_block[0][2] = 1; map1_Tetris_block[0][3] = 1;
+			map1_Tetris_block[1][0] = 0; map1_Tetris_block[1][1] = 0; map1_Tetris_block[1][2] = 0; map1_Tetris_block[1][3] = 0;
+			break;
+
+		}
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < 4; j++) {
+				map1_arrground[i][j] = map1_Tetris_block[i][j];
+			}
+		}
+	
+}
+void oncreate2() {
+	srand((UINT)time(NULL));
+	int flag2 = rand() % 7;
+	memset(map2_Tetris_block, 0, sizeof(map2_Tetris_block));//清空方块数组
+	switch (flag2) {
+	case 0:
+		type_block2 = 0;//仰躺7
+		at_line2 = 0;
+		at_list2 = 0;
+		map2_Tetris_block[0][0] = 1; map2_Tetris_block[0][1] = 0; map2_Tetris_block[0][2] = 0; map2_Tetris_block[0][3] = 0;
+		map2_Tetris_block[1][0] = 1; map2_Tetris_block[1][1] = 1; map2_Tetris_block[1][2] = 1; map2_Tetris_block[1][3] = 0;
+		break;
+	case 1:
+		type_block2 = 1;//趴躺7
+		at_line2 = 0;
+		at_list2 = 0;
+		map2_Tetris_block[0][0] = 1; map2_Tetris_block[0][1] = 1; map2_Tetris_block[0][2] = 1; map2_Tetris_block[0][3] = 0;
+		map2_Tetris_block[1][0] = 1; map2_Tetris_block[1][1] = 0; map2_Tetris_block[1][2] = 0; map2_Tetris_block[1][3] = 0;
+		break;
+	case 2:
+		type_block2 = 2;//正Z
+		at_line2 = 0;
+		at_list2 = 0;
+		map2_Tetris_block[0][0] = 1; map2_Tetris_block[0][1] = 1; map2_Tetris_block[0][2] = 0; map2_Tetris_block[0][3] = 0;
+		map2_Tetris_block[1][0] = 0; map2_Tetris_block[1][1] = 1; map2_Tetris_block[1][2] = 1; map2_Tetris_block[1][3] = 0;
+		break;
+	case 3:
+		type_block2 = 3;//反Z
+		at_line2 = 0;
+		at_list2 = 0;
+		map2_Tetris_block[0][0] = 0; map2_Tetris_block[0][1] = 1; map2_Tetris_block[0][2] = 1; map2_Tetris_block[0][3] = 0;
+		map2_Tetris_block[1][0] = 1; map2_Tetris_block[1][1] = 1; map2_Tetris_block[1][2] = 0; map2_Tetris_block[1][3] = 0;
+		break;
+	case 4:
+		type_block2 = 4;//正方形
+		map2_Tetris_block[0][0] = 0; map2_Tetris_block[0][1] = 1; map2_Tetris_block[0][2] = 1; map2_Tetris_block[0][3] = 0;
+		map2_Tetris_block[1][0] = 0; map2_Tetris_block[1][1] = 1; map2_Tetris_block[1][2] = 1; map2_Tetris_block[1][3] = 0;
+		break;
+	case 5:
+		type_block2 = 5;//凸形
+		at_line2 = 0;
+		at_list2 = 0;
+		map2_Tetris_block[0][0] = 0; map2_Tetris_block[0][1] = 1; map2_Tetris_block[0][2] = 0; map2_Tetris_block[0][3] = 0;
+		map2_Tetris_block[1][0] = 1; map2_Tetris_block[1][1] = 1; map2_Tetris_block[1][2] = 1; map2_Tetris_block[1][3] = 0;
+		break;
+	case 6:
+		type_block2 = 6;//长条
+		at_line2 = 0;
+		at_list2 = 0;
+		map2_Tetris_block[0][0] = 1; map2_Tetris_block[0][1] = 1; map2_Tetris_block[0][2] = 1; map2_Tetris_block[0][3] = 1;
+		map2_Tetris_block[1][0] = 0; map2_Tetris_block[1][1] = 0; map2_Tetris_block[1][2] = 0; map2_Tetris_block[1][3] = 0;
+		break;
+
+	}
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 4; j++) {
+			map2_arrground[i][j] = map2_Tetris_block[i][j];
+		}
+	}
+}
+void onReturn(HWND hwnd) {
+	if (pause) { 
+		SetTimer(hwnd, 1234, 600, NULL); 
+		pause = false;
+		flag_begin = 1;
+	}
+	else {
+		KillTimer(hwnd, 1234);
+		pause = true;
+	}
+}
+void onLeft(HWND hwnd) {
+	if (1 == CanLeft1() && 1 == CanLeft2()) {
+		HDC hdc = GetDC(hwnd);
+		at_list1--;
+		blockLeft();
+		onpaint(hdc);
+		ReleaseDC(hwnd, hdc);
+	}
+}
+void blockLeft() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if (1 == map1_arrground[i][j]) {
+				if (j - 1 >= 0) {
+					map1_arrground[i][j - 1] = map1_arrground[i][j];
+					map1_arrground[i][j] = 0;
+				}
+			}
+		}
+	}
+}
+void onRight(HWND hwnd) {
+	if (1 == CanRight1() && 1 == CanRight2()) {
+		HDC hdc = GetDC(hwnd);
+		at_list1++;
+		blockRight();
+		onpaint(hdc);
+		ReleaseDC(hwnd, hdc);
+	}
+}
+void blockRight() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 9; j >= 0; j--) {
+			if (1 == map1_arrground[i][j]) {
+				if (j + 1 <= 9) {
+					map1_arrground[i][j + 1] = map1_arrground[i][j];
+					map1_arrground[i][j] = 0;
+				}
+			}
+		}
+	}
+}
+void onDown(HWND hwnd) {
+	ontimer1(hwnd);
+}
+void onUp(HWND hwnd) {
+	HDC hdc = GetDC(hwnd);
+	switch (type_block1) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 5://7+z+凸变形
+		if (CanChanged1() == 1) {
+			Changed1();
+		}
+		else {
+			return;
+		}
+		break;
+	case 4://正方形
+		return;
+		break;
+	case 6://长条
+		if (CanChangedLine1() == 1) {
+			ChangedLine1();
+		}
+		break;
+	}
+	onpaint(hdc);
+}
+int CanLeft1() {
+	for (int i = 0; i < 20; i++) {
+		if (1 == map1_arrground[i][0])return 0;
+	}
+	return 1;
+}
+int CanLeft2() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if(j-1>=0)if (1 == map1_arrground[i][j] && 2 == map1_arrground[i][j - 1])return 0;
+		}
+	}
+	return 1;
+}
+int CanRight1() {
+	for (int i = 0; i < 20; i++) {
+		if (1 == map1_arrground[i][9])return 0;
+	}
+	return 1;
+}
+int CanRight2() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if(j+1<=9)if (1 == map1_arrground[i][j] && 2 == map1_arrground[i][j +1])return 0;
+		}
+	}
+	return 1;
+}
+int CanChanged1() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if (map1_arrground[at_line1 + 1][at_list1 + 1] == 2)return 0;
+		}
+	}
+	if (at_list1 < 0)at_list1 = 0;
+	else if (at_list1 + 2 > 9)at_list1 = 7;
+	return 1;
+}
+void Changed1() {
+	int a[3][3] = { 0 };
+	//小方块复制出来
+	for (int i = 0; i < 3; i++){
+		for (int j = 0; j < 3; j++){
+			a[i][j] =map1_arrground[at_line1 + i][at_list1+ j];
+		}
+	}
+	int t;
+	for (int i = 0; i < 3; ++i){
+		for (int j = 0; j < i; ++j){
+			t = a[j][i];
+			a[j][i] = a[i][j];
+			a[i][j] = t;
+		}
+	}//先转置
+
+	for (int i = 0; i < 3; ++i){
+		for (int j = 0; j < 3 / 2; ++j){
+			t = a[i][j];
+			a[i][j] = a[i][3 - 1 - j];
+			a[i][3 - 1 - j] = t;
+		}
+	}//水平镜像
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			map1_arrground[at_line1 + i][at_list1 + j] = a[i][j];
+		}
+	}
+}
+int CanChangedLine1() {
+	int i = 0, j = 0;
+	for (i = 1; i < 4; i++) {
+		if (map1_arrground[at_line1][at_list1 + i] == 2 || at_list1 + i > 9)break;
+	}
+	for (j = 1; j < 4; j++) {
+		if (map1_arrground[at_line1][at_list1 - j] == 2 || at_list1 - j < 0)break;
+	}
+	if ((i - 1 + j - 1) < 3){
+		return 0;
+	}
+	return 1;
+}
+void ChangedLine1() {
+	int a[4][4] = { 0 };
+	//小方块复制出来
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			a[i][j] = map1_arrground[at_line1 + i][at_list1 + j];
+		}
+	}
+	int t;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < i; ++j) {
+			t = a[j][i];
+			a[j][i] = a[i][j];
+			a[i][j] = t;
+		}
+	}//先转置
+
+	/*for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4 / 2; ++j) {
+			t = a[i][j];
+			a[i][j] = a[i][4- 1 - j];
+			a[i][4 - 1 - j] = t;
+		}
+	}//水平镜像*/
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			map1_arrground[at_line1 + i][at_list1 + j] = a[i][j];
+		}
+	}
+}
+int CanChanged2() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if (map2_arrground[at_line2 + 1][at_list2 + 1] == 2)return 0;
+		}
+	}
+	if (at_list2 < 0)at_list2 = 0;
+	else if (at_list2 + 2 > 9)at_list2 = 7;
+	return 1;
+}
+void Changed2() {
+	int a[3][3] = { 0 };
+	//小方块复制出来
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			a[i][j] = map2_arrground[at_line2 + i][at_list2 + j];
+		}
+	}
+	int t;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < i; ++j) {
+			t = a[j][i];
+			a[j][i] = a[i][j];
+			a[i][j] = t;
+		}
+	}//先转置
+
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3 / 2; ++j) {
+			t = a[i][j];
+			a[i][j] = a[i][3 - 1 - j];
+			a[i][3 - 1 - j] = t;
+		}
+	}//水平镜像
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			map2_arrground[at_line2 + i][at_list2 + j] = a[i][j];
+		}
+	}
+}
+int CanChangedLine2() {
+	int i = 0, j = 0;
+	for (i = 1; i < 4; i++) {
+		if (map2_arrground[at_line2][at_list2 + i] == 2 || at_list2 + i > 9)break;
+	}
+	for (j = 1; j < 4; j++) {
+		if (map2_arrground[at_line2][at_list2 - j] == 2 || at_list2 - j < 0)break;
+	}
+	if ((i - 1 + j - 1) < 3) {
+		return 0;
+	}
+	return 1;
+}
+void ChangedLine2() {
+	int a[4][4] = { 0 };
+	//小方块复制出来
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			a[i][j] = map2_arrground[at_line2 + i][at_list2 + j];
+		}
+	}
+	int t;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < i; ++j) {
+			t = a[j][i];
+			a[j][i] = a[i][j];
+			a[i][j] = t;
+		}
+	}//先转置
+
+	/*for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4 / 2; ++j) {
+			t = a[i][j];
+			a[i][j] = a[i][4- 1 - j];
+			a[i][4 - 1 - j] = t;
+		}
+	}//水平镜像*/
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			map2_arrground[at_line2 + i][at_list2 + j] = a[i][j];
+		}
+	}
+}
+void ontimer1(HWND hwnd) {
+	HDC hdc = GetDC(hwnd);
+	if (CanDownF1() == 1 && CanDownS1() == 1) {
+		BlockDown1();
+		at_line1++;
+	}
+	else {
+		FlagChanged1();
+		DestroyBlock1();
+		if (Gameover1(hwnd) == 0) {
+			KillTimer(hwnd, 1234);
+			return;
+		}
+		oncreate1();
+	}
+	onpaint(hdc);
+	ReleaseDC(hwnd, hdc);
+}
+int CanDownF1() {
+	for (int i = 0; i < 10; i++) {
+		if (map1_arrground[19][i] == 1)return 0;
+	}
+	return 1;
+}
+int CanDownS1() {
+	for (int i = 18; i >= 0; i--) {
+		for (int j = 0; j < 10; j++) {
+			if (map1_arrground[i][j] == 1 && map1_arrground[i + 1][j]==2)return 0;
+		}
+	}
+	return 1;
+}
+void BlockDown1() {
+	int i = 0;
+	int j = 0;
+	for (i = 19; i >= 0; i--)
+	{
+		for (j = 0; j < 10; j++)
+		{
+			if (1 == map1_arrground[i][j])
+			{
+				map1_arrground[i + 1][j] = map1_arrground[i][j];
+				map1_arrground[i][j] = 0;
+			}
+		}
+	}
+}
+void FlagChanged1() {
+	for (int i = 0; i < 20; i++)
+	{
+		for (int j = 0; j < 10; j++)
+		{
+			if (1 == map1_arrground[i][j])
+			{
+				map1_arrground[i][j] = 2;
+			}
+		}
+	}
+}
+void DestroyBlock1() {
+	int i = 0, j = 0;
+	int sum = 0;
+	int n= 0;
+	int num = 0;
+	for (i = 19; i >= 0; i--){
+		for (j = 0; j < 10; j++){
+			sum += map1_arrground[i][j];
+		}
+		if (20 == sum){
+			//消除一行
+			num++;
+			for (n = i - 1; n>= 0; n--){
+				for (j = 0; j < 10; j++){
+					map1_arrground[n + 1][j] = map1_arrground[n][j];
+					map1_arrground[n][j] = 0;
+				}
+			}
+			//记分用
+			player1++;
+			//为了能消除多行
+			i = 20;
+			sum = 0;
+			//给另一个玩家增加一行
+
+
+		}
+		//清零
+		sum = 0;
+	}
+	if(num!=0)AddLineForOther(2,num);
+}
+int Gameover1(HWND hwnd) {
+	int i = 0;
+	for (i = 0; i < 10; i++)
+	{
+		if (2 == map1_arrground[0][i])
+		{
+			//游戏结束
+			/*char strScore1[10] = { 0 };
+			char strScore2[10] = { 0 };
+			//Rectangle(hmemdc, 600, 0, 800, 600);//右边显示
+			_itoa_s(player1, strScore1, 10);//转换成字符串
+			_itoa_s(player2, strScore2, 10);//转换成字符串
+			char str1[] = "玩家一得分:";
+			char str2[] = "玩家二得分:";
+			char str3[] = "游戏结束,玩家一失败.";
+			char str4[] = " , ";
+			strcat_s(str3, str1);
+			strcat_s(str3, strScore1);
+			strcat_s(str3, str4);
+			strcat_s(str3, str2);
+			strcat_s(str3, strScore2);
+			CString   m_str(str3);*/
+			KillTimer(hwnd, 1234);
+			MessageBox(NULL,L"游戏结束,玩家一失败", L"提示", MB_OK);//消息盒子（句柄 可写可不写，字符串指针 内容， 字符串指针， 风格)
+			
+			return 0;
+		}
+	}
+	return 1;
+}
+void ExitGame(HWND hwnd) {
+	DestroyWindow(hwnd);
+}
+
+
+
+//
+void onLeft2(HWND hwnd) {
+	if (1 == _CanLeft1() && 1 == _CanLeft2()) {
+		HDC hdc = GetDC(hwnd);
+		at_list2--;
+		blockLeft2();
+		onpaint(hdc);
+		ReleaseDC(hwnd, hdc);
+	}
+}
+void blockLeft2() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if (1 == map2_arrground[i][j]) {
+				if (j - 1 >= 0) {
+					map2_arrground[i][j - 1] = map2_arrground[i][j];
+					map2_arrground[i][j] = 0;
+				}
+			}
+		}
+	}
+}
+void onRight2(HWND hwnd) {
+	if (1 == _CanRight1() && 1 == _CanRight2()) {
+		HDC hdc = GetDC(hwnd);
+		at_list2++;
+		blockRight2();
+		onpaint(hdc);
+		ReleaseDC(hwnd, hdc);
+	}
+}
+void blockRight2() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 9; j >= 0; j--) {
+			if(j+1<=9)
+			if (1 == map2_arrground[i][j]) {
+				map2_arrground[i][j + 1] = map2_arrground[i][j];
+				map2_arrground[i][j] = 0;
+			}
+		}
+	}
+}
+void onDown2(HWND hwnd) {
+	ontimer2(hwnd);
+}
+void onUp2(HWND hwnd) {
+	HDC hdc = GetDC(hwnd);
+	switch (type_block2) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 5://7+z+凸变形
+		if (CanChanged2() == 1) {
+			Changed2();
+		}
+		else {
+			return;
+		}
+		break;
+	case 4://正方形
+		return;
+		break;
+	case 6://长条
+		if (CanChangedLine2() == 1) {
+			ChangedLine2();
+		}
+		break;
+	}
+	onpaint(hdc);
+}
+int _CanLeft1() {
+	for (int i = 0; i < 20; i++) {
+		if (1 == map2_arrground[i][0])return 0;
+	}
+	return 1;
+}
+int _CanLeft2() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if(j-1>=0)if (1 == map2_arrground[i][j] && 2 == map2_arrground[i][j - 1])return 0;
+		}
+	}
+	return 1;
+}
+int _CanRight1() {
+	for (int i = 0; i < 20; i++) {
+		if (1 == map2_arrground[i][9])return 0;
+	}
+	return 1;
+}
+int _CanRight2() {
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 10; j++) {
+			if(j+1<=9)if (1 == map2_arrground[i][j] && 2 == map2_arrground[i][j + 1])return 0;
+		}
+	}
+	return 1;
+}
+//
+void ontimer2(HWND hwnd) {
+	HDC hdc = GetDC(hwnd);
+	if (CanDownF2() == 1 && CanDownS2() == 1) {
+		BlockDown2();
+		at_line2++;
+	}
+	else {
+		FlagChanged2();
+		DestroyBlock2();
+		if (Gameover2(hwnd) == 0) {
+			KillTimer(hwnd, 1234);
+			return;
+		}
+		oncreate2();
+	}
+	onpaint(hdc);
+	ReleaseDC(hwnd, hdc);
+}
+int CanDownF2() {
+	for (int i = 0; i < 10; i++) {
+		if (map2_arrground[19][i] == 1)return 0;
+	}
+	return 1;
+}
+int CanDownS2() {
+	for (int i = 18; i >= 0; i--) {
+		for (int j = 0; j < 10; j++) {
+			if (map2_arrground[i][j] == 1 && map2_arrground[i + 1][j] == 2)return 0;
+		}
+	}
+	return 1;
+}
+void BlockDown2() {
+	int i = 0;
+	int j = 0;
+	for (i = 19; i >= 0; i--)
+	{
+		for (j = 0; j < 10; j++)
+		{
+			if (1 == map2_arrground[i][j])
+			{
+				map2_arrground[i + 1][j] = map2_arrground[i][j];
+				map2_arrground[i][j] = 0;
+			}
+		}
+	}
+}
+void FlagChanged2() {
+	for (int i = 0; i < 20; i++)
+	{
+		for (int j = 0; j < 10; j++)
+		{
+			if (1 == map2_arrground[i][j])
+			{
+				map2_arrground[i][j] = 2;
+			}
+		}
+	}
+}
+void DestroyBlock2() {
+	int i = 0, j = 0;
+	int sum = 0;
+	int n = 0;
+	int num = 0;
+	for (i = 19; i >= 0; i--) {
+		for (j = 0; j < 10; j++) {
+			sum += map2_arrground[i][j];
+		}
+		if (20 == sum) {
+			//消除一行
+			num++;
+			for (n = i - 1; n >= 0; n--) {
+				for (j = 0; j < 10; j++) {
+					map2_arrground[n + 1][j] = map2_arrground[n][j];
+					map2_arrground[n][j] = 0;
+				}
+			}
+			//记分用
+			player2++;
+			//为了能消除多行
+			i = 20;
+			sum = 0;
+			
+		}
+		//清零
+		sum = 0;
+	}
+	if(num!=0)
+	AddLineForOther(1,num);
+}
+int Gameover2(HWND hwnd) {
+	int i = 0;
+	for (i = 0; i < 10; i++)
+	{
+		if (2 == map2_arrground[0][i])
+		{
+			//游戏结束
+			KillTimer(hwnd, 1234);
+			MessageBox(NULL, L"游戏结束,玩家二失败", L"提示", MB_OK);//消息盒子（句柄 可写可不写，字符串指针 内容， 字符串指针， 风格)
+			
+			return 0;
+		}
+	}
+	return 1;
+}
+void AddLineForOther(int flag, int num) {
+	if (flag == 1) {
+		int k=0;
+		int flag1 = 0;
+		for (int i = 0; i < 20; i++) {
+			for (int j = 0; j < 10; j++) {
+				if (map1_arrground[i][j] == 2) {
+					flag1 = 1;
+					break;
+				}
+				if (flag1 == 1) {
+					k = i;
+					break;
+				}
+			}
+		}
+		for (int i = k - num; i < 20; i++) {
+			for (int j = 0; j < 10; j++) {
+				if (2 == map1_arrground[i][j]) {
+					int temp= map1_arrground[i][j];
+					map1_arrground[i - 1][j] = map1_arrground[i][j];
+					map1_arrground[i][j] = 0;
+				}
+			}
+		}
+		for (int i = 19; i > 19 - num; i--) {
+			for (int j = 0; j < 3; j++) {
+				//srand((UINT)time(NULL));
+				int luck = rand() % 10;
+				map1_arrground[i][luck] = 2;
+				//map1_arrground[i][luck+1] = 2;
+			}
+		}
+	}
+	if (flag == 2) {
+		int k=0;
+		int flag1 = 0;
+		for (int i = 0; i < 20; i++) {
+			for (int j = 0; j < 10; j++) {
+				if (map2_arrground[i][j] == 2) {
+					flag1 = 1;
+					break;
+				}
+				if (flag1== 1) {
+					k = i;
+					break;
+				}
+			}
+		}
+		for (int i = k -num; i < 20; i++) {
+			for (int j = 0; j < 10; j++) {
+				if (2 == map2_arrground[i][j]) {
+					int temp = map2_arrground[i][j];;
+					map2_arrground[i - 1][j] = map2_arrground[i][j];
+					map2_arrground[i][j] = 0;
+				}
+			}
+		}
+		for (int i = 19; i > 19 - num; i--) {
+			for (int j = 0; j < 3; j++) {
+				//srand((UINT)time(NULL));
+				int luck = rand() % 10;
+				map2_arrground[i][luck] = 2;
+				//map2_arrground[i][luck+1] = 2;
+
+			}
+		}
+	}
+}
+void ShowScore(HDC hmemdc)
+{
+	char strScore1[10] = { 0 };
+	char strScore2[10] = { 0 };
+	//Rectangle(hmemdc, 600, 0, 800, 600);//右边显示
+	_itoa_s(player1, strScore1, 10);//转换成字符串
+	_itoa_s(player2, strScore2, 10);//转换成字符串
+	TCHAR szText1[20] = TEXT("Player_1得分：");
+	TextOut(hmemdc, 620, 50, szText1, wcslen(szText1));
+	TCHAR szText2[20] = TEXT("Player_2得分：");
+	TextOut(hmemdc, 620, 100, szText2, wcslen(szText2));
+	TextOut(hmemdc, 740, 50, (LPCWSTR)strScore1, strlen(strScore1));//(句柄，x，y，一个字符串，字节数 有效的)
+	TextOut(hmemdc, 740, 100, (LPCWSTR)strScore2, strlen(strScore2));//(句柄，x，y，一个字符串，字节数 有效的)
+	TCHAR szText3[20] = TEXT("回车：开始/暂停");
+	TextOut(hmemdc, 620, 150, szText3, wcslen(szText3));
+	TCHAR szText4[20] = TEXT("Player_1:WSAD");
+	TextOut(hmemdc, 620, 200, szText4, wcslen(szText4));
+	TCHAR szText5[20] = TEXT("Player_2:↑↓←→");
+	TextOut(hmemdc, 620, 250, szText5, wcslen(szText5));
+}
